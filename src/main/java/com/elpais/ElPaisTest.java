@@ -25,13 +25,13 @@ public class ElPaisTest {
 
         navigateToOpinion();
         printFirstFiveArticleLinks();
-
+        extractTitlesFromFirstFiveArticles();
         driver.quit();
     }
 
     private static void setupDriver() {
 
-        WebDriverManager.chromedriver().setup();//going with chrome first
+        WebDriverManager.chromedriver().setup();// going with chrome first
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--start-maximized");
@@ -49,7 +49,7 @@ public class ElPaisTest {
     private static void verifySpanishLanguage() {
 
         String language = driver.findElement(By.tagName("html"))
-                                .getAttribute("lang");
+                .getAttribute("lang");
 
         System.out.println("Language Attribute: " + language);
     }
@@ -71,11 +71,39 @@ public class ElPaisTest {
         for (int i = 0; i < 5 && i < articles.size(); i++) {
 
             WebElement linkElement = articles.get(i)
-                                             .findElement(By.cssSelector("a"));
+                    .findElement(By.cssSelector("a"));
 
             String articleUrl = linkElement.getAttribute("href");
 
             System.out.println("Article " + (i + 1) + " URL: " + articleUrl);
+        }
+    }
+
+    private static void extractTitlesFromFirstFiveArticles() {
+
+        List<WebElement> articles = driver.findElements(By.cssSelector("article"));
+
+        for (int i = 0; i < 5 && i < articles.size(); i++) {
+
+            WebElement linkElement = articles.get(i)
+                    .findElement(By.cssSelector("a"));
+
+            String articleUrl = linkElement.getAttribute("href");
+
+            // Navigate to article page
+            driver.navigate().to(articleUrl);
+
+            // Wait for title
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("h1")));
+
+            String title = driver.findElement(By.cssSelector("h1")).getText();
+
+            System.out.println("Article " + (i + 1) + " Title: " + title);
+
+            // Go back to Opinion page
+            driver.navigate().back();
+
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("article")));
         }
     }
 }
