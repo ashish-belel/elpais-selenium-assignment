@@ -3,6 +3,7 @@ package com.elpais;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.By;
 import io.github.bonigarcia.wdm.WebDriverManager;
 
 public class ElPaisTest {
@@ -18,7 +19,19 @@ public class ElPaisTest {
 
         driver.get("https://elpais.com/");
 
-        System.out.println("Title of page: " + driver.getTitle());
+        String pageTitle = driver.getTitle();
+        System.out.println("Page Title: " + pageTitle);
+
+        String language = driver.findElement(By.tagName("html"))
+                                .getAttribute("lang");
+
+        System.out.println("Language Attribute: " + language);
+
+        if (language.contains("es")) {
+            System.out.println("Website is in Spanish");
+        } else {
+            System.out.println("Website is NOT confirmed Spanish");
+        }
 
         driver.quit();
     }
