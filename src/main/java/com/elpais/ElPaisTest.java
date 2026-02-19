@@ -81,29 +81,34 @@ public class ElPaisTest {
 
     private static void extractTitlesFromFirstFiveArticles() {
 
-        List<WebElement> articles = driver.findElements(By.cssSelector("article"));
+        List<WebElement> links = driver.findElements(By.cssSelector("article a[href]"));
 
-        for (int i = 0; i < 5 && i < articles.size(); i++) {
+        int count = 0;
 
-            WebElement linkElement = articles.get(i)
-                    .findElement(By.cssSelector("a"));
+        for (WebElement link : links) {
 
-            String articleUrl = linkElement.getAttribute("href");
+            String articleUrl = link.getAttribute("href");
 
-            // Navigate to article page
-            driver.navigate().to(articleUrl);
+            // Only select real articles containing a date pattern
+            if (articleUrl.contains("/202")) {
 
-            // Wait for title
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("h1")));
+                driver.navigate().to(articleUrl);
 
-            String title = driver.findElement(By.cssSelector("h1")).getText();
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("h1")));
 
-            System.out.println("Article " + (i + 1) + " Title: " + title);
+                String title = driver.findElement(By.cssSelector("h1")).getText();
 
-            // Go back to Opinion page
-            driver.navigate().back();
+                System.out.println("Article " + (count + 1) + " Title: " + title);
 
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("article")));
+                driver.navigate().back();
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("article")));
+
+                count++;
+
+                if (count == 5) {
+                    break;
+                }
+            }
         }
     }
 }
