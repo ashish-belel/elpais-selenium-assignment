@@ -164,17 +164,24 @@ public class ElPaisTest {
                 try {
                     WebElement contentDiv = wait.until(
                             ExpectedConditions.presenceOfElementLocated(
-                                    By.cssSelector("article, div.a_c"))); // Tried a more flexible selector
+                                    By.cssSelector("div.a_c.clearfix")));
 
                     List<WebElement> paragraphs = contentDiv.findElements(By.tagName("p"));
+
+                    // Quick sanity check to see if we actually grabbed the right elements
+                    System.out.println("DEBUG: Found " + paragraphs.size() + " paragraph tags.");
                     System.out.println("Content:");
+
                     for (WebElement p : paragraphs) {
-                        if (!p.getText().isBlank()) {
-                            System.out.println(p.getText().trim());
+                        // Use textContent or innerText to force-grab the text from the DOM
+                        String text = p.getAttribute("textContent").trim();
+
+                        if (!text.isEmpty()) {
+                            System.out.println(text);
                         }
                     }
                 } catch (Exception e) {
-                    System.out.println("Could not extract content for this article.");
+                    System.out.println("Could not locate the content container.");
                 }
 
                 downloadCoverImageIfExists(i + 1);
