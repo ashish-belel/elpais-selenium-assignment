@@ -42,7 +42,6 @@
     </dependency>
 </dependencies>
 
-
   <build>
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
@@ -87,5 +86,15 @@
         </plugin>
       </plugins>
     </pluginManagement>
+     <plugins>
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.1.0</version>
+            <configuration>
+                <mainClass>com.elpais.ElPaisTest</mainClass>
+            </configuration>
+        </plugin>
+    </plugins>
   </build>
 </project>
