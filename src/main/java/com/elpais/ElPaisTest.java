@@ -1,38 +1,81 @@
 package com.elpais;
 
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.By;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+
 import io.github.bonigarcia.wdm.WebDriverManager;
+
+import java.time.Duration;
+import java.util.List;
 
 public class ElPaisTest {
 
+    private static WebDriver driver;
+    private static WebDriverWait wait;
+
     public static void main(String[] args) {
 
-        WebDriverManager.chromedriver().setup(); //going with chrome first
+        setupDriver();
+
+        openHomePage();
+        verifySpanishLanguage();
+
+        navigateToOpinion();
+        printFirstFiveArticleLinks();
+
+        driver.quit();
+    }
+
+    private static void setupDriver() {
+
+        WebDriverManager.chromedriver().setup();//going with chrome first
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--start-maximized");
 
-        WebDriver driver = new ChromeDriver(options);
+        driver = new ChromeDriver(options);
+        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+    }
+
+    private static void openHomePage() {
 
         driver.get("https://elpais.com/");
+        System.out.println("Page Title: " + driver.getTitle());
+    }
 
-        String pageTitle = driver.getTitle();
-        System.out.println("Page Title: " + pageTitle);
+    private static void verifySpanishLanguage() {
 
         String language = driver.findElement(By.tagName("html"))
                                 .getAttribute("lang");
 
         System.out.println("Language Attribute: " + language);
+    }
 
-        if (language.contains("es")) {
-            System.out.println("Website is in Spanish");
-        } else {
-            System.out.println("Website is NOT confirmed Spanish");
+    private static void navigateToOpinion() {
+
+        driver.get("https://elpais.com/opinion/");
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("article")));
+
+        System.out.println("Navigated to Opinion section.");
+    }
+
+    private static void printFirstFiveArticleLinks() {
+
+        List<WebElement> articles = driver.findElements(By.cssSelector("article"));
+
+        System.out.println("Total articles found: " + articles.size());
+
+        for (int i = 0; i < 5 && i < articles.size(); i++) {
+
+            WebElement linkElement = articles.get(i)
+                                             .findElement(By.cssSelector("a"));
+
+            String articleUrl = linkElement.getAttribute("href");
+
+            System.out.println("Article " + (i + 1) + " URL: " + articleUrl);
         }
-
-        driver.quit();
     }
 }
