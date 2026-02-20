@@ -13,3 +13,11 @@ pom.xml.versionsBackup
 /.vscode/
 /.DS_Store
 Thumbs.db
+# Maven build output
+/target/
+
+# Maven helper files
+dependency-reduced-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup

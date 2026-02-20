@@ -1,16 +1,23 @@
 package com.elpais;
 
+// Selenium imports
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-
+// WebDriverManager import
 import io.github.bonigarcia.wdm.WebDriverManager;
-
+// Java imports
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 public class ElPaisTest {
 
@@ -26,7 +33,13 @@ public class ElPaisTest {
 
         navigateToOpinion();
         printFirstFiveArticleLinks();
-        extractTitlesFromFirstFiveArticles();
+        // extractTitlesFromFirstFiveArticles();
+        // translateTitlesToEnglish(null);
+        List<String> spanishTitles = extractTitlesFromFirstFiveArticles();
+        List<String> englishTitles = translateTitlesToEnglish(spanishTitles);
+
+        analyzeRepeatedWords(englishTitles);
+
         driver.quit();
     }
 
@@ -94,6 +107,7 @@ public class ElPaisTest {
     }
 
     /*
+     * IGNORE BCOZ IT WAS FIRST ATTEMPT
      * private static void extractTitlesFromFirstFiveArticles() {
      * 
      * List<WebElement> articleLinks =
@@ -201,6 +215,8 @@ public class ElPaisTest {
         return spanishTitles;
     }
 
+    // I CALLED THIS FUNCTION IN THE ABOVE FUNCTION TO DOWNLOAD COVER IMAGE WHEN
+    // EXTRACTING TITLES AND CONTENT
     private static void downloadCoverImageIfExists(int articleNumber) {
 
         try {
@@ -209,18 +225,101 @@ public class ElPaisTest {
 
             if (imageUrl != null && !imageUrl.isEmpty()) {
 
-                java.io.InputStream in = new java.net.URL(imageUrl).openStream();
+                // java.io.InputStream in = new java.net.URL(imageUrl).openStream();
+                try (java.io.InputStream in = new java.net.URL(imageUrl).openStream()) {
+                    java.nio.file.Files.copy(
+                            in,
+                            java.nio.file.Paths.get("article_" + articleNumber + ".jpg"),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
-                java.nio.file.Files.copy(
-                        in,
-                        java.nio.file.Paths.get("article_" + articleNumber + ".jpg"),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-                System.out.println("Cover image downloaded.");
+                    System.out.println("Cover image downloaded.");
+                }
             }
 
         } catch (Exception e) {
             System.out.println("No cover image found.");
+        }
+    }
+
+    private static List<String> translateTitlesToEnglish(List<String> spanishTitles) {
+
+        List<String> translatedTitles = new ArrayList<>();
+
+        for (String title : spanishTitles) {
+
+            try {
+                URL url = new URL("https://rapid-translate-multi-traduction.p.rapidapi.com/t");
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+
+                conn.setRequestProperty("content-type", "application/json");
+                conn.setRequestProperty("X-RapidAPI-Key", "456fe427c9msh9feb9450648f963p143a17jsn94a9af29448a");
+                conn.setRequestProperty("X-RapidAPI-Host", "rapid-translate-multi-traduction.p.rapidapi.com");
+
+                conn.setDoOutput(true);
+
+                String jsonInputString = "{ \"from\":\"es\", \"to\":\"en\", \"q\":\"" + title + "\" }";
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                System.out.println("Response Code: " + conn.getResponseCode());
+                System.out.println("Response Message: " + conn.getResponseMessage());
+                System.out.println("Response Body: " + response.toString());
+
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+
+                // Response format is simple array: ["Translated Text"]
+                String translated = response.toString()
+                        .replace("[\"", "")
+                        .replace("\"]", "");
+
+                translatedTitles.add(translated);
+
+                System.out.println("Translated: " + translated);
+
+            } catch (Exception e) {
+                System.out.println("Translation failed for: " + title);
+            }
+
+        }
+
+        return translatedTitles;
+    }
+
+    private static void analyzeRepeatedWords(List<String> englishTitles) {
+
+        System.out.println("\n===== REPEATED WORD ANALYSIS =====");
+
+        java.util.Map<String, Integer> wordCount = new java.util.HashMap<>();
+
+        for (String title : englishTitles) {
+
+            String[] words = title.toLowerCase().replaceAll("[^a-z ]", "").split("\\s+");
+
+            for (String word : words) {
+
+                if (word.length() < 3)
+                    continue; // ignore small words like 'of', 'to'
+
+                wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
+            }
+        }
+
+        for (String word : wordCount.keySet()) {
+            if (wordCount.get(word) > 2) {
+                System.out.println(word + " -> " + wordCount.get(word));
+            }
         }
     }
 }
