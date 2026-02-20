@@ -47,9 +47,9 @@ public class ElPaisTest {
                     ((JavascriptExecutor) driver).executeScript(
                             "browserstack_executor: {\"action\": \"setSessionStatus\", \"arguments\": {\"status\":\"passed\", \"reason\": \"Execution successful\"}}");
                 } catch (Exception e) {
-                    if(driver != null) {
-                    ((JavascriptExecutor) driver).executeScript(
-                            "browserstack_executor: {\"action\": \"setSessionStatus\", \"arguments\": {\"status\":\"failed\", \"reason\": \"Exception occurred\"}}");
+                    if (driver != null) {
+                        ((JavascriptExecutor) driver).executeScript(
+                                "browserstack_executor: {\"action\": \"setSessionStatus\", \"arguments\": {\"status\":\"failed\", \"reason\": \"Exception occurred\"}}");
                     }
                     e.printStackTrace();
                 } finally {
@@ -97,6 +97,7 @@ public class ElPaisTest {
 
         // Mobile configuration
         else if (platform.equalsIgnoreCase("iphone")) {
+            capabilities.setCapability("browserName", "Safari");
             bstackOptions.put("deviceName", "iPhone 14");
             bstackOptions.put("realMobile", "true");
             bstackOptions.put("osVersion", "16");
