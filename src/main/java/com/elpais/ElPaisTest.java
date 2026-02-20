@@ -160,28 +160,35 @@ public class ElPaisTest {
                 System.out.println("URL: " + articleUrl);
                 System.out.println("Title: " + title);
 
-                // CONTENT - Wrapping in try-catch in case an article has no text
+                // CONTENT
                 try {
+                    // 1. Wait for the article container
                     WebElement contentDiv = wait.until(
                             ExpectedConditions.presenceOfElementLocated(
-                                    By.cssSelector("div.a_c.clearfix")));
+                                    By.cssSelector("article, div.a_c.clearfix"))); // Using a flexible container
+                                                                                   // selector
 
-                    List<WebElement> paragraphs = contentDiv.findElements(By.tagName("p"));
+                    // 2. Find BOTH <p> tags AND <figcaption> tags using a CSS selector with a comma
+                    List<WebElement> textElements = contentDiv.findElements(By.cssSelector("p, figcaption"));
 
-                    // Quick sanity check to see if we actually grabbed the right elements
-                    System.out.println("DEBUG: Found " + paragraphs.size() + " paragraph tags.");
-                    System.out.println("Content:");
+                    System.out.println("Content (Spanish):");
 
-                    for (WebElement p : paragraphs) {
-                        // Use textContent or innerText to force-grab the text from the DOM
-                        String text = p.getAttribute("textContent").trim();
+                    if (textElements.isEmpty()) {
+                        System.out.println("[No standard text found. This might be a video or pure image gallery]");
+                    }
 
-                        if (!text.isEmpty()) {
+                    // 3. Loop through everything we found
+                    for (WebElement element : textElements) {
+                        // Use textContent to bypass any "visibility" rules
+                        String text = element.getAttribute("textContent").trim();
+
+                        // Ensure it's not empty and ignore generic photo credits like "Foto: El País"
+                        if (!text.isEmpty() && !text.startsWith("Foto:")) {
                             System.out.println(text);
                         }
                     }
                 } catch (Exception e) {
-                    System.out.println("Could not locate the content container.");
+                    System.out.println("Could not locate the content container for this article.");
                 }
 
                 downloadCoverImageIfExists(i + 1);
