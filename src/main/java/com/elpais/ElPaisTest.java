@@ -1,244 +1,201 @@
 package com.elpais;
 
-// Selenium imports
+//Selenium imports
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-// WebDriverManager import
-import io.github.bonigarcia.wdm.WebDriverManager;
-// Java imports
+//Java imports
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
-//import java.io.InputStream; //these are separately imported in the function
-//import java.io.OutputStream; //don't need it but will if needed
 import java.nio.charset.StandardCharsets;
 
 public class ElPaisTest {
 
-    private static WebDriver driver;
-    private static WebDriverWait wait;
-
     public static void main(String[] args) {
 
-        setupDriver();
+        // Combination of Desktop + Mobile (Task 5 requirement)
+        String[] platforms = { "chrome", "firefox", "edge", "safari", "iphone" };
 
-        openHomePage();
-        verifySpanishLanguage();
+        ExecutorService executor = Executors.newFixedThreadPool(platforms.length);
 
-        navigateToOpinion();
-        printFirstFiveArticleLinks();
-        // extractTitlesFromFirstFiveArticles();
-        // translateTitlesToEnglish(null);
-        List<String> spanishTitles = extractTitlesFromFirstFiveArticles();
-        List<String> englishTitles = translateTitlesToEnglish(spanishTitles);
-        analyzeRepeatedWords(englishTitles);
+        for (String platform : platforms) {
 
-        driver.quit();
-        System.exit(0);
+            executor.submit(() -> {
+
+                WebDriver driver = null;
+                WebDriverWait wait;
+
+                try {
+                    driver = createBrowserStackDriver(platform);
+                    wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+
+                    openHomePage(driver, wait);
+                    verifySpanishLanguage(driver);
+                    navigateToOpinion(driver, wait);
+
+                    List<String> spanishTitles = extractFirstFiveArticles(driver, wait);
+                    List<String> englishTitles = translateTitlesToEnglish(spanishTitles);
+                    analyzeRepeatedWords(englishTitles);
+
+                    ((JavascriptExecutor) driver).executeScript(
+                            "browserstack_executor: {\"action\": \"setSessionStatus\", \"arguments\": {\"status\":\"passed\", \"reason\": \"Execution successful\"}}");
+                } catch (Exception e) {
+                    if(driver != null) {
+                    ((JavascriptExecutor) driver).executeScript(
+                            "browserstack_executor: {\"action\": \"setSessionStatus\", \"arguments\": {\"status\":\"failed\", \"reason\": \"Exception occurred\"}}");
+                    }
+                    e.printStackTrace();
+                } finally {
+                    if (driver != null) {
+                        driver.quit();
+                    }
+                }
+            });
+        }
+
+        executor.shutdown();
     }
 
-    private static void setupDriver() {
+    private static WebDriver createBrowserStackDriver(String platform) throws Exception {
 
-        WebDriverManager.chromedriver().setup();// going with chrome first
+        String USERNAME = "ashishbelel_tDJ698";
+        String ACCESS_KEY = "6kGk6cARURSgYZ29t1z8";
 
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--start-maximized");
+        String URL = "https://" + USERNAME + ":" + ACCESS_KEY +
+                "@hub-cloud.browserstack.com/wd/hub";
 
-        driver = new ChromeDriver(options);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        MutableCapabilities capabilities = new MutableCapabilities();
+        HashMap<String, Object> bstackOptions = new HashMap<>();
+
+        bstackOptions.put("buildName", "ElPais Assignment Build");
+        bstackOptions.put("sessionName", platform + " Test");
+
+        // Desktop configurations
+        if (platform.equalsIgnoreCase("chrome") ||
+                platform.equalsIgnoreCase("firefox") ||
+                platform.equalsIgnoreCase("edge")) {
+
+            capabilities.setCapability("browserName", platform.substring(0, 1).toUpperCase() + platform.substring(1));
+            capabilities.setCapability("browserVersion", "latest");
+            bstackOptions.put("os", "Windows");
+            bstackOptions.put("osVersion", "11");
+        }
+
+        else if (platform.equalsIgnoreCase("safari")) {
+            capabilities.setCapability("browserName", "Safari");
+            capabilities.setCapability("browserVersion", "latest");
+            bstackOptions.put("os", "OS X");
+            bstackOptions.put("osVersion", "Ventura");
+        }
+
+        // Mobile configuration
+        else if (platform.equalsIgnoreCase("iphone")) {
+            bstackOptions.put("deviceName", "iPhone 14");
+            bstackOptions.put("realMobile", "true");
+            bstackOptions.put("osVersion", "16");
+        }
+
+        capabilities.setCapability("bstack:options", bstackOptions);
+
+        return new RemoteWebDriver(new URL(URL), capabilities);
     }
 
-    private static void openHomePage() {
-
+    private static void openHomePage(WebDriver driver, WebDriverWait wait) {
         driver.get("https://elpais.com/");
-        System.out.println("Page Title: " + driver.getTitle());
-        handleCookies();
+        handleCookies(wait);
     }
 
-    private static void handleCookies() {
+    private static void handleCookies(WebDriverWait wait) {
         try {
             WebElement acceptButton = wait.until(
                     ExpectedConditions.elementToBeClickable(
                             By.cssSelector("button[data-testid='didomi-notice-agree-button']")));
             acceptButton.click();
-            System.out.println("Cookies accepted.");
-        } catch (Exception e) {
-            System.out.println("No cookie popup found.");
+        } catch (Exception ignored) {
         }
     }
 
-    private static void verifySpanishLanguage() {
-
-        String language = driver.findElement(By.tagName("html"))
-                .getAttribute("lang");
-
+    private static void verifySpanishLanguage(WebDriver driver) {
+        String language = driver.findElement(By.tagName("html")).getAttribute("lang");
         System.out.println("Language Attribute: " + language);
     }
 
-    private static void navigateToOpinion() {
-
+    private static void navigateToOpinion(WebDriver driver, WebDriverWait wait) {
         driver.get("https://elpais.com/opinion/");
         wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("article")));
-
-        System.out.println("Navigated to Opinion section.");
     }
 
-    private static void printFirstFiveArticleLinks() {
+    private static List<String> extractFirstFiveArticles(WebDriver driver, WebDriverWait wait) {
 
-        List<WebElement> articles = driver.findElements(By.cssSelector("article"));
-
-        System.out.println("Total articles found: " + articles.size());
-
-        for (int i = 0; i < 5 && i < articles.size(); i++) {
-
-            WebElement linkElement = articles.get(i)
-                    .findElement(By.cssSelector("a"));
-
-            String articleUrl = linkElement.getAttribute("href");
-
-            System.out.println("Article " + (i + 1) + " URL: " + articleUrl);
-        }
-    }
-
-    /*
-     * IGNORE BCOZ IT WAS FIRST ATTEMPT
-     * private static void extractTitlesFromFirstFiveArticles() {
-     * 
-     * List<WebElement> articleLinks =
-     * driver.findElements(By.cssSelector("article h2 a"));
-     * 
-     * System.out.println("Real article links found: " + articleLinks.size());
-     * 
-     * for (int i = 0; i < 5 && i < articleLinks.size(); i++) {
-     * 
-     * String articleUrl = articleLinks.get(i).getAttribute("href");
-     * 
-     * System.out.println("Article " + (i + 1) + " URL: " + articleUrl);
-     * 
-     * driver.navigate().to(articleUrl);
-     * 
-     * wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("h1")));
-     * 
-     * String title = driver.findElement(By.cssSelector("main h1")).getText();
-     * 
-     * System.out.println("Article " + (i + 1) + " Title: " + title);
-     * 
-     * driver.navigate().back();
-     * 
-     * wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(
-     * "article")));
-     * }
-     * }
-     */
-    private static List<String> extractTitlesFromFirstFiveArticles() {
-        // 1. Ensure we are on the main page before finding links
-        List<WebElement> articleLinkElements = wait.until(
+        List<WebElement> articleLinks = wait.until(
                 ExpectedConditions.presenceOfAllElementsLocatedBy(
                         By.cssSelector("article h2 a")));
 
-        List<String> articleUrls = new ArrayList<>();
+        List<String> urls = new ArrayList<>();
         List<String> spanishTitles = new ArrayList<>();
 
-        // Step 1: Store first 5 URLs (Safe because we haven't navigated away yet)
-        for (int i = 0; i < 5 && i < articleLinkElements.size(); i++) {
-            String url = articleLinkElements.get(i).getAttribute("href");
-            if (url != null && !url.isEmpty()) {
-                articleUrls.add(url);
-            }
+        for (int i = 0; i < 5 && i < articleLinks.size(); i++) {
+            urls.add(articleLinks.get(i).getAttribute("href"));
         }
 
-        // Step 2: Visit each article
-        for (int i = 0; i < articleUrls.size(); i++) {
+        for (int i = 0; i < urls.size(); i++) {
+
+            driver.get(urls.get(i));
+
+            WebElement titleElement = wait.until(
+                    ExpectedConditions.presenceOfElementLocated(By.tagName("h1")));
+
+            String title = titleElement.getText().trim();
+            spanishTitles.add(title);
+
+            System.out.println("\n===== ARTICLE " + (i + 1) + " =====");
+            System.out.println("Title: " + title);
+            System.out.println("Content (Spanish):");
+
             try {
-                String articleUrl = articleUrls.get(i);
-                driver.get(articleUrl);
-                // DEBUGGING LINES: Check if the URL is valid and what the title is
-                System.out.println("DEBUG: Actually loaded URL -> " + driver.getCurrentUrl());
-                System.out.println("DEBUG: Page Title -> " + driver.getTitle());
-
-                // Use a more generic selector if h1.a_t is too specific/fragile
-                WebElement titleElement = wait.until(
+                WebElement content = wait.until(
                         ExpectedConditions.presenceOfElementLocated(
-                                By.cssSelector("h1")));
+                                By.cssSelector("div.a_c.clearfix")));
 
-                String title = titleElement.getAttribute("textContent").trim();
-                spanishTitles.add(title);
+                List<WebElement> paragraphs = content.findElements(By.tagName("p"));
 
-                System.out.println("\n===== ARTICLE " + (i + 1) + " =====");
-                System.out.println("URL: " + articleUrl);
-                System.out.println("Title: " + title);
-
-                // CONTENT
-                try {
-                    // 1. Wait for the article container
-                    WebElement contentDiv = wait.until(
-                            ExpectedConditions.presenceOfElementLocated(
-                                    By.cssSelector("article, div.a_c.clearfix"))); // Using a flexible container
-                                                                                   // selector
-
-                    // 2. Find BOTH <p> tags AND <figcaption> tags using a CSS selector with a comma
-                    List<WebElement> textElements = contentDiv.findElements(By.cssSelector("p, figcaption"));
-
-                    System.out.println("Content (Spanish):");
-
-                    if (textElements.isEmpty()) {
-                        System.out.println("[No standard text found. This might be a video or pure image gallery]");
+                for (WebElement p : paragraphs) {
+                    String text = p.getText().trim();
+                    if (!text.isEmpty()) {
+                        System.out.println(text);
                     }
-
-                    // 3. Loop through everything we found
-                    for (WebElement element : textElements) {
-                        // Use textContent to bypass any "visibility" rules
-                        String text = element.getAttribute("textContent").trim();
-
-                        // Ensure it's not empty and ignore generic photo credits like "Foto: El País"
-                        if (!text.isEmpty() && !text.startsWith("Foto:")) {
-                            System.out.println(text);
-                        }
-                    }
-                } catch (Exception e) {
-                    System.out.println("Could not locate the content container for this article.");
                 }
-
-                downloadCoverImageIfExists(i + 1);
-
             } catch (Exception e) {
-                System.err.println("Error processing article " + (i + 1) + ": " + e.getMessage());
+                System.out.println("No content found.");
             }
+
+            downloadCoverImageIfExists(driver, i + 1);
         }
 
         return spanishTitles;
     }
 
-    // I CALLED THIS FUNCTION IN THE ABOVE FUNCTION TO DOWNLOAD COVER IMAGE WHEN
-    // EXTRACTING TITLES AND CONTENT
-    private static void downloadCoverImageIfExists(int articleNumber) {
-
+    private static void downloadCoverImageIfExists(WebDriver driver, int articleNumber) {
         try {
             WebElement image = driver.findElement(By.cssSelector("figure img"));
             String imageUrl = image.getAttribute("src");
 
             if (imageUrl != null && !imageUrl.isEmpty()) {
-
-                // java.io.InputStream in = new java.net.URL(imageUrl).openStream();
                 try (java.io.InputStream in = new java.net.URL(imageUrl).openStream()) {
                     java.nio.file.Files.copy(
                             in,
                             java.nio.file.Paths.get("article_" + articleNumber + ".jpg"),
                             java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-                    System.out.println("Cover image downloaded.");
                 }
             }
-
-        } catch (Exception e) {
-            System.out.println("No cover image found.");
+        } catch (Exception ignored) {
         }
     }
 
@@ -251,15 +208,10 @@ public class ElPaisTest {
         for (String title : spanishTitles) {
 
             try {
-
                 String encodedTitle = java.net.URLEncoder.encode(title, "UTF-8");
 
                 String urlStr = "https://translate.googleapis.com/translate_a/single"
-                        + "?client=gtx"
-                        + "&sl=es"
-                        + "&tl=en"
-                        + "&dt=t"
-                        + "&q=" + encodedTitle;
+                        + "?client=gtx&sl=es&tl=en&dt=t&q=" + encodedTitle;
 
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -275,11 +227,7 @@ public class ElPaisTest {
                     response.append(line);
                 }
 
-                // Extract translated text
-                String result = response.toString();
-
-                // First translated segment is inside [[[ "TRANSLATION"
-                String translated = result.split("\"")[1]; // safe enough for this format
+                String translated = response.toString().split("\"")[1];
 
                 translatedTitles.add(translated);
 
@@ -295,13 +243,11 @@ public class ElPaisTest {
         return translatedTitles;
     }
 
-    //on executing , no repeated words more than twice were found.
-    //the given examples didn't have many repeated words
     private static void analyzeRepeatedWords(List<String> englishTitles) {
 
         System.out.println("\n===== REPEATED WORD ANALYSIS =====");
 
-        java.util.Map<String, Integer> wordCount = new java.util.HashMap<>();
+        Map<String, Integer> wordCount = new HashMap<>();
 
         for (String title : englishTitles) {
 
@@ -311,8 +257,7 @@ public class ElPaisTest {
                     .split("\\s+");
 
             for (String word : words) {
-
-                if (word.length() > 2) { // ignores very small words like "of", "to"
+                if (word.length() > 2) {
                     wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
                 }
             }
@@ -321,13 +266,12 @@ public class ElPaisTest {
         boolean found = false;
 
         for (String word : wordCount.keySet()) {
-
             if (wordCount.get(word) > 2) {
                 System.out.println(word + " -> " + wordCount.get(word));
                 found = true;
             }
         }
-        
+
         if (!found) {
             System.out.println("No repeated words more than twice were found.");
         }
