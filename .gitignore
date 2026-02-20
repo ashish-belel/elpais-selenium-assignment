@@ -1,0 +1,15 @@
+﻿# Maven build output
+/target/
+
+# Maven helper files
+dependency-reduced-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+
+# IDE and OS (optional)
+*.iml
+/.idea/
+/.vscode/
+/.DS_Store
+Thumbs.db
