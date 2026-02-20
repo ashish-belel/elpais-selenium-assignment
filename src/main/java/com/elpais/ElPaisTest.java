@@ -16,7 +16,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
-import java.io.OutputStream;
+//import java.io.InputStream; //these are separately imported in the function
+//import java.io.OutputStream; //don't need it but will if needed
 import java.nio.charset.StandardCharsets;
 
 public class ElPaisTest {
@@ -37,10 +38,10 @@ public class ElPaisTest {
         // translateTitlesToEnglish(null);
         List<String> spanishTitles = extractTitlesFromFirstFiveArticles();
         List<String> englishTitles = translateTitlesToEnglish(spanishTitles);
-
         analyzeRepeatedWords(englishTitles);
 
         driver.quit();
+        System.exit(0);
     }
 
     private static void setupDriver() {
@@ -245,58 +246,57 @@ public class ElPaisTest {
 
         List<String> translatedTitles = new ArrayList<>();
 
+        System.out.println("\n===== TRANSLATED HEADERS =====");
+
         for (String title : spanishTitles) {
 
             try {
-                URL url = new URL("https://rapid-translate-multi-traduction.p.rapidapi.com/t");
 
+                String encodedTitle = java.net.URLEncoder.encode(title, "UTF-8");
+
+                String urlStr = "https://translate.googleapis.com/translate_a/single"
+                        + "?client=gtx"
+                        + "&sl=es"
+                        + "&tl=en"
+                        + "&dt=t"
+                        + "&q=" + encodedTitle;
+
+                URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-
-                conn.setRequestProperty("content-type", "application/json");
-                conn.setRequestProperty("X-RapidAPI-Key", "456fe427c9msh9feb9450648f963p143a17jsn94a9af29448a");
-                conn.setRequestProperty("X-RapidAPI-Host", "rapid-translate-multi-traduction.p.rapidapi.com");
-
-                conn.setDoOutput(true);
-
-                String jsonInputString = "{ \"from\":\"es\", \"to\":\"en\", \"q\":\"" + title + "\" }";
-
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
+                conn.setRequestMethod("GET");
 
                 BufferedReader br = new BufferedReader(
                         new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 
                 StringBuilder response = new StringBuilder();
-                String responseLine;
-                System.out.println("Response Code: " + conn.getResponseCode());
-                System.out.println("Response Message: " + conn.getResponseMessage());
-                System.out.println("Response Body: " + response.toString());
+                String line;
 
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
+                while ((line = br.readLine()) != null) {
+                    response.append(line);
                 }
 
-                // Response format is simple array: ["Translated Text"]
-                String translated = response.toString()
-                        .replace("[\"", "")
-                        .replace("\"]", "");
+                // Extract translated text
+                String result = response.toString();
+
+                // First translated segment is inside [[[ "TRANSLATION"
+                String translated = result.split("\"")[1]; // safe enough for this format
 
                 translatedTitles.add(translated);
 
+                System.out.println("Original:   " + title);
                 System.out.println("Translated: " + translated);
+                System.out.println();
 
             } catch (Exception e) {
                 System.out.println("Translation failed for: " + title);
             }
-
         }
 
         return translatedTitles;
     }
 
+    //on executing , no repeated words more than twice were found.
+    //the given examples didn't have many repeated words
     private static void analyzeRepeatedWords(List<String> englishTitles) {
 
         System.out.println("\n===== REPEATED WORD ANALYSIS =====");
@@ -305,21 +305,31 @@ public class ElPaisTest {
 
         for (String title : englishTitles) {
 
-            String[] words = title.toLowerCase().replaceAll("[^a-z ]", "").split("\\s+");
+            String[] words = title
+                    .replaceAll("[^a-zA-Z ]", "")
+                    .toLowerCase()
+                    .split("\\s+");
 
             for (String word : words) {
 
-                if (word.length() < 3)
-                    continue; // ignore small words like 'of', 'to'
-
-                wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
+                if (word.length() > 2) { // ignores very small words like "of", "to"
+                    wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
+                }
             }
         }
 
+        boolean found = false;
+
         for (String word : wordCount.keySet()) {
+
             if (wordCount.get(word) > 2) {
                 System.out.println(word + " -> " + wordCount.get(word));
+                found = true;
             }
+        }
+        
+        if (!found) {
+            System.out.println("No repeated words more than twice were found.");
         }
     }
 }
