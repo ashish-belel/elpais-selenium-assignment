@@ -29,6 +29,7 @@ BrowserStack (Cloud Execution)
 Google Translate API (HTTP integration)
 -------------------
 📂 Project Structure
+```text
 src/
  └── main/
      └── java/
