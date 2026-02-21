@@ -53,5 +53,6 @@ iPhone 14 (Real Mobile Device)
 
 Parallel execution is implemented using:
 ExecutorService
+
 Each thread creates a separate RemoteWebDriver session.
 All the assignment tasks were implemented.
