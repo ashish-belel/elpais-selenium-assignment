@@ -35,6 +35,7 @@ src/
      └── java/
          └── com/elpais/
              └── ElPaisTest.java
+```
 -------------------
 ☁️ BrowserStack Execution (Task 5)
 
